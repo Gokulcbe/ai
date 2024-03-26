@@ -1,0 +1,361 @@
+N- queen problem
+
+def print_solution(board):
+    for row in board:
+        print(' '.join(row))
+    print()
+
+def is_safe(board, row, col, n):
+    # Check this row on left side
+    for i in range(col):
+        if board[row][i] == 'Q':
+            return False
+
+    # Check upper diagonal on left side
+    for i, j in zip(range(row, -1, -1), range(col, -1, -1)):
+        if board[i][j] == 'Q':
+            return False
+
+    # Check lower diagonal on left side
+    for i, j in zip(range(row, n), range(col, -1, -1)):
+        if board[i][j] == 'Q':
+            return False
+
+    return True
+
+def solve_n_queens_util(board, col, n):
+    if col == n:
+        print_solution(board)
+        return True
+
+    res = False
+    for i in range(n):
+        if is_safe(board, i, col, n):
+            board[i][col] = 'Q'
+            res = solve_n_queens_util(board, col + 1, n) or res
+            board[i][col] = '.'  # Backtrack if placing a queen at (i, col) doesn't lead to a solution
+
+    return res
+
+def solve_n_queens(n):
+    board = [['.' for _ in range(n)] for _ in range(n)]
+
+    if not solve_n_queens_util(board, 0, n):
+        print("No solution exists.")
+
+# Get the board size as input
+n = int(input("Enter the size of the chessboard (N): "))
+solve_n_queens(n)
+
+---------------------------------------------------------------------------------
+
+# A * algorithm
+
+
+from queue import PriorityQueue
+from math import inf
+
+class Graph:
+    def __init__(self, directed=True):
+        self.edges = {}
+        self.huristics = {}
+        self.directed = directed
+
+    def add_edge(self, node1, node2, cost=1, __reversed=False):
+        try:
+            neighbors = self.edges[node1]
+        except KeyError:
+            neighbors = {}
+        neighbors[node2] = cost
+        self.edges[node1] = neighbors
+        if not self.directed and not __reversed:
+            self.add_edge(node2, node1, cost, True)
+
+    def set_huristics(self, huristics={}):
+        self.huristics = huristics
+
+    def neighbors(self, node):
+        try:
+            return self.edges[node]
+        except KeyError:
+            return {}
+
+    def cost(self, node1, node2):
+        try:
+            return self.edges[node1][node2]
+        except KeyError:
+            return inf
+
+    def iterative_deepening_astar_search(self, start, goal):
+        prev_visited, depth = 0, 0
+        while True:
+            trace, cost, visited = self.depth_limited_astar_search(start, goal, depth)
+            if trace or visited == prev_visited:
+                return trace, cost
+            prev_visited = visited
+            depth += 1
+
+    def depth_limited_astar_search(self, start, goal, limit=-1):
+        print('Depth Limit =', limit)
+        found, fringe, visited = False, PriorityQueue(), set([start])
+        fringe.put((self.huristics[start], start, 0))
+        came_from, cost_so_far = {start: None}, {start: 0}
+        print('{:11s} | {}'.format('Expand Node', 'Fringe'))
+        print('--------------------')
+        print('{:11s} | {}'.format('-', str((fringe.queue[0][1], fringe.queue[0][0]))))
+        while not fringe.empty():
+            _, current, depth = fringe.get()
+            print('{:11s}'.format(current), end=' | ')
+            if current == goal:
+                found = True
+                break
+            if limit == -1 or depth < limit:
+                for node in self.neighbors(current):
+                    new_cost = cost_so_far[current] + self.cost(current, node)
+                    if node not in visited or new_cost < cost_so_far.get(node, inf):
+                        visited.add(node)
+                        came_from[node] = current
+                        cost_so_far[node] = new_cost
+                        fringe.put((new_cost + self.huristics[node], node, depth + 1))
+                print(', '.join([str((n[1], n[0])) for n in fringe.queue]))
+        if found:
+            print()
+            return came_from, cost_so_far[goal], len(visited)
+        else:
+            print('No path from {} to {}'.format(start, goal))
+            return None, inf, len(visited)
+
+    @staticmethod
+    def print_path(came_from, goal):
+        parent = came_from[goal]
+        if parent:
+            Graph.print_path(came_from, parent)
+        else:
+            print(goal, end='')
+            return
+        print(' =>', goal, end='')
+
+    def __str__(self):
+        return str(self.edges)
+
+graph = Graph(directed=True)
+graph.add_edge('A', 'B', 4)
+graph.add_edge('A', 'C', 1)
+graph.add_edge('B', 'D', 3)
+graph.add_edge('B', 'E', 8)
+graph.add_edge('C', 'C', 0)
+graph.add_edge('C', 'D', 7)
+graph.add_edge('C', 'F', 6)
+graph.add_edge('D', 'C', 2)
+graph.add_edge('D', 'E', 4)
+graph.add_edge('E', 'G', 2)
+graph.add_edge('F', 'G', 8)
+graph.set_huristics({'A': 8, 'B': 8, 'C': 6, 'D': 5, 'E': 1, 'F': 4, 'G': 0})
+start, goal, limit = 'A', 'G', 3
+traced_path, cost = graph.iterative_deepening_astar_search(start, goal)
+
+if traced_path:
+    print('Path:', end=' ')
+    Graph.print_path(traced_path, goal)
+    print('\nCost:', cost)
+
+-------------------------------------------------------------------------------------------
+
+#BIDIRECTIONAL SEARCH
+from collections import deque
+
+class Graph:
+    def __init__(self, directed=True):
+        self.edges = {}
+        self.directed = directed
+
+    def add_edge(self, node1, node2, __reversed=False):
+        try:
+            neighbors = self.edges[node1]
+        except KeyError:
+            neighbors = set()
+        neighbors.add(node2)
+        self.edges[node1] = neighbors
+        if not self.directed and not __reversed:
+            self.add_edge(node2, node1, True)
+
+    def neighbors(self, node):
+        try:
+            return self.edges[node]
+        except KeyError:
+            return set()
+
+    def bi_directional_search(self, start, goal):
+        found, fringe1, visited1, came_from1 = False, deque([start]), set([start]), {start: None}
+        meet, fringe2, visited2, came_from2 = None, deque([goal]), set([goal]), {goal: None}
+
+        while not found and (fringe1 or fringe2):
+            print('FringeStart: {:30s} | FringeGoal: {}'.format(str(fringe1), str(fringe2)))
+            if fringe1:
+                current1 = fringe1.pop()
+                if current1 in visited2:
+                    meet = current1
+                    found = True
+                    break
+                for node in self.neighbors(current1):
+                    if node not in visited1:
+                        visited1.add(node)
+                        fringe1.appendleft(node)
+                        came_from1[node] = current1
+
+            if fringe2:
+                current2 = fringe2.pop()
+                if current2 in visited1:
+                    meet = current2
+                    found = True
+                    break
+                for node in self.neighbors(current2):
+                    if node not in visited2:
+                        visited2.add(node)
+                        fringe2.appendleft(node)
+                        came_from2[node] = current2
+
+        if found:
+            print()
+            return came_from1, came_from2, meet
+        else:
+            print('No path between {} and {}'.format(start, goal))
+            return None, None, None
+
+    @staticmethod
+    def print_path(came_from, goal):
+        parent = came_from[goal]
+        if parent:
+            Graph.print_path(came_from, parent)
+        else:
+            print(goal, end='')
+            return
+        print(' =>', goal, end='')
+
+    def __str__(self):
+        return str(self.edges)
+
+graph = Graph(directed=False)
+
+graph.add_edge('A', 'B')
+graph.add_edge('A', 'S')
+graph.add_edge('S', 'G')
+graph.add_edge('S', 'C')
+graph.add_edge('C', 'F')
+graph.add_edge('G', 'F')
+graph.add_edge('C', 'D')
+graph.add_edge('C', 'E')
+graph.add_edge('E', 'H')
+graph.add_edge('G', 'H')
+
+start, goal = 'A', 'H'
+traced_path1, traced_path2, meet = graph.bi_directional_search(start, goal)
+if meet:
+    print('Meeting Node:', meet)
+    print('Path From Start:', end=' ')
+    Graph.print_path(traced_path1, meet)
+    print()
+    print('Path From Goal:', end=' ')
+    Graph.print_path(traced_path2, meet)
+    print()
+------------------------------------------------------------------------------
+
+
+
+
+# 8-PUZZLE PROBLEM USING BEST FIRST SEARCH
+
+import heapq
+
+class PuzzleState:
+    def __init__(self, puzzle, parent=None):
+        self.puzzle = puzzle
+        self.parent = parent
+        self.cost = 0
+        self.heuristic = 0
+        self.depth = 0
+
+    def __lt__(self, other):
+        return (self.cost + self.heuristic) < (other.cost + other.heuristic)
+
+    def __eq__(self, other):
+        return self.puzzle == other.puzzle
+
+    def __hash__(self):
+        return hash(str(self.puzzle))
+
+    def goal_test(self):
+        return self.puzzle == [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
+    def generate_children(self):
+        children = []
+        zero_index = self.puzzle.index(0)
+        moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]  # Right, Left, Down, Up
+
+        for dx, dy in moves:
+            new_x, new_y = zero_index // 3 + dx, zero_index % 3 + dy
+            if 0 <= new_x < 3 and 0 <= new_y < 3:
+                new_puzzle = self.puzzle[:]
+                new_zero_index = new_x * 3 + new_y
+                new_puzzle[zero_index], new_puzzle[new_zero_index] = new_puzzle[new_zero_index], new_puzzle[zero_index]
+                new_state = PuzzleState(new_puzzle, self)
+                children.append(new_state)
+
+        return children
+
+def manhattan_distance(state):
+    distance = 0
+    for i in range(1, 9):
+        current_x, current_y = state.puzzle.index(i) // 3, state.puzzle.index(i) % 3
+        goal_x, goal_y = (i - 1) // 3, (i - 1) % 3
+        distance += abs(current_x - goal_x) + abs(current_y - goal_y)
+    return distance
+
+def best_first_search(initial_state):
+    frontier = []
+    heapq.heappush(frontier, initial_state)
+
+    explored = set()
+    while frontier:
+        current_state = heapq.heappop(frontier)
+
+        if current_state.goal_test():
+            return current_state
+
+        explored.add(current_state)
+
+        for child in current_state.generate_children():
+            if child not in explored:
+                child.cost = current_state.cost + 1
+                child.heuristic = manhattan_distance(child)
+                heapq.heappush(frontier, child)
+
+    return None
+
+def print_solution(solution):
+    path = []
+    current_state = solution
+    while current_state:
+        path.append(current_state.puzzle)
+        current_state = current_state.parent
+    path.reverse()
+    for i, state in enumerate(path):
+        print(f"Move {i}:")
+        print_puzzle(state)
+        print()
+
+def print_puzzle(puzzle):
+    for i in range(0, 9, 3):
+        print(puzzle[i:i+3])
+
+if __name__ == "__main__":
+    initial_puzzle = [1, 2, 3, 0, 4, 5, 6, 7, 8]  # Initial state of the puzzle
+    initial_state = PuzzleState(initial_puzzle)
+
+    solution = best_first_search(initial_state)
+
+    if solution:
+        print("Solution found:")
+        print_solution(solution)
+    else:
+        print("No solution found.")
